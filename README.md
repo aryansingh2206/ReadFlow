@@ -354,21 +354,6 @@ python scripts/run_quality_checks.py
 - Auto-scaling Spark executors
 - Production-grade monitoring
 
-## 🎤 Interview Talking Points
-
-### When asked about this project:
-
-**"What does it do?"**
-> "ReadFlow is an end-to-end data platform that ingests book data from GoodReads API, transforms it through a medallion architecture data lake, and serves analytics through a SQL warehouse and interactive dashboard."
-
-**"What's impressive about it?"**
-> "It demonstrates production patterns: orchestrated workflows, data quality checks, incremental processing, star schema modeling, and performance optimization - all using industry-standard tools like Airflow, Spark, and Parquet."
-
-**"What challenges did you solve?"**
-> "API rate limiting with retry logic, schema evolution handling, incremental vs full loads, partition strategy for query performance, and building idempotent pipelines that are safe to re-run."
-
-**"How does it scale?"**
-> "The architecture is cloud-portable. MinIO uses the S3 API, so migrating to AWS S3 is a config change. Spark jobs use partitioning and columnar formats for efficiency. The medallion architecture separates hot and cold data."
 
 ## 📚 Learning Resources
 
@@ -386,14 +371,4 @@ This is a portfolio project, but feedback welcome! Open an issue or PR.
 
 MIT License - Feel free to use for your portfolio
 
-## 🔥 Resume Description
 
-**ReadFlow — End-to-End Book Analytics Platform**
-
-Built an end-to-end data pipeline processing real-time GoodReads API data for book and review analytics. Designed a data lake and warehouse architecture using S3-compatible object storage and Parquet datasets. Orchestrated Spark ETL jobs with Apache Airflow, scheduled at 10-minute intervals. Implemented data cleaning, deduplication, and star-schema modeling for analytics workloads. Enabled SQL-based analytics using DuckDB and delivered insights via an interactive Streamlit application. Applied data quality checks and performance optimizations to ensure reliable and scalable analytics.
-
----
-
-**Built with ❤️ using 100% free, open-source tools**
-
-Total cost: **₹0** | Production vibes: **100%**
