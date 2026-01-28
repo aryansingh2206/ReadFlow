@@ -1,0 +1,169 @@
+name: ReadFlow CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov black flake8
+    
+    - name: Lint with flake8
+      run: |
+        # Stop on syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Treat all other issues as warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Format check with black
+      run: |
+        black --check .
+    
+    - name: Run unit tests
+      run: |
+        pytest tests/unit/ --cov=. --cov-report=xml --cov-report=html
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-readflow
+
+  validate-dags:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install Airflow
+      run: |
+        pip install apache-airflow==2.8.1
+    
+    - name: Validate DAG syntax
+      run: |
+        python -m py_compile airflow/dags/*.py
+        
+    - name: Test DAG imports
+      run: |
+        python -c "
+        import sys
+        sys.path.insert(0, 'airflow/dags')
+        from goodreads_ingestion_dag import dag
+        assert dag is not None
+        print('✓ All DAGs imported successfully')
+        "
+
+  spark-job-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install PySpark
+      run: |
+        pip install pyspark==3.5.0
+    
+    - name: Validate Spark job syntax
+      run: |
+        python -m py_compile spark/jobs/*.py
+
+  docker-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build Airflow image
+      run: |
+        docker build -f airflow/Dockerfile -t readflow-airflow:test .
+    
+    - name: Build Streamlit image
+      run: |
+        docker build -f analytics/Dockerfile -t readflow-streamlit:test analytics/
+    
+    - name: Test Docker Compose
+      run: |
+        docker-compose config
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, validate-dags, docker-build]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Start services
+      run: |
+        docker-compose up -d minio postgres
+        sleep 10
+    
+    - name: Run integration tests
+      run: |
+        docker-compose run --rm airflow-webserver pytest tests/integration/
+    
+    - name: Stop services
+      run: |
+        docker-compose down -v
+
+  deploy-docs:
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, validate-dags]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy documentation
+      run: |
+        echo "Documentation deployment would happen here"
+        # Example: Deploy to GitHub Pages, ReadTheDocs, etc.
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [integration-test]
+    if: always()
+    
+    steps:
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "✓ All checks passed!"
+    
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "✗ Pipeline failed. Check logs for details."
